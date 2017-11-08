@@ -1,0 +1,6 @@
+vendor
+.idea/*
+idea/*
+.idea/composerJson.xml
+.idea/vcs.xml
+composer.lock
