@@ -1,5 +1,4 @@
 <?php
-
 namespace SocialiteProviders\Wonde;
 
 use SocialiteProviders\Manager\SocialiteWasCalled;
