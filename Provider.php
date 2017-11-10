@@ -1,10 +1,10 @@
 <?php
+
 namespace SocialiteProviders\Wonde;
 
 use Laravel\Socialite\Two\ProviderInterface;
 use SocialiteProviders\Manager\OAuth2\AbstractProvider;
 use SocialiteProviders\Manager\OAuth2\User;
-use function foo\func;
 
 class Provider extends AbstractProvider implements ProviderInterface
 {
@@ -18,7 +18,7 @@ class Provider extends AbstractProvider implements ProviderInterface
      */
     protected function getAuthUrl($state)
     {
-        return $this->buildAuthUrlFromBase('https://edu.wonde.dev/oauth/authorize', $state);
+        return $this->buildAuthUrlFromBase('https://edu.wonde.dev/oauth/authorize', $state) . '&mode=teacher';
     }
 
     /**
@@ -34,9 +34,9 @@ class Provider extends AbstractProvider implements ProviderInterface
      */
     protected function getUserByToken($token)
     {
-        $response = $this->getHttpClient()->get('https://api.wonde.dev/graphql/me?query=%7B%0A%20%20Me%7B%0A%20%20%20%20first_name%0A%20%20%20%20last_name%0A%20%20%20%20id%0A%20%20%20%20Person%7B%0A%20%20%20%20%20%20__typename%0A%20%20%20%20%20%20...on%20Student%7B%0A%20%20%20%20%20%20%20%20forename%0A%20%20%20%20%20%20%20%20surname%0A%20%20%20%20%20%20%20%20ContactDetails%20%7B%0A%20%20%20%20%20%20%20%20%20%20email%0A%20%20%20%20%20%20%20%20%20%20email_home%0A%20%20%20%20%20%20%20%20%20%20email_work%0A%20%20%20%20%20%20%20%20%20%20email_primary%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20...on%20Employee%7B%0A%20%20%20%20%20%20%20%20forename%0A%09%09%09%09surname%0A%20%20%20%20%20%20%20%20ContactDetails%20%7B%0A%20%20%20%20%20%20%20%20%20%20email%0A%20%20%20%20%20%20%20%20%20%20email_home%0A%20%20%20%20%20%20%20%20%20%20email_work%0A%20%20%20%20%20%20%20%20%20%20email_primary%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20...on%20Contact%7B%0A%20%20%20%20%20%20%20%20forename%0A%20%20%20%20%20%20%20%20surname%0A%20%20%20%20%20%20%20%20ContactDetails%20%7B%0A%20%20%20%20%20%20%20%20%20%20email%0A%20%20%20%20%20%20%20%20%20%20email_home%0A%20%20%20%20%20%20%20%20%20%20email_work%0A%20%20%20%20%20%20%20%20%20%20email_primary%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%7D%0A%7D', [
+        $response = $this->getHttpClient()->get('https://api.wonde.dev/graphql/me?query=%7B%0A%20%20Me%7B%0A%20%20%20%20id%0A%20%20%20%20first_name%0A%20%20%20%20last_name%0A%20%20%20%20email%0A%20%20%20%20mobile%0A%20%20%20%20School%20%7B%0A%20%20%20%20%20%20id%0A%20%20%20%20%20%20name%0A%20%20%20%20%20%20establishment_number%0A%20%20%20%20%20%20la_code%0A%20%20%20%20%20%20urn%0A%20%20%20%20%7D%0A%20%20%20%20Person%7B%0A%20%20%20%20%20%20__typename%0A%20%20%20%20%20%20...on%20Employee%7B%0A%20%20%20%20%20%20%20%20forename%0A%09%09%09%09surname%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%7D%0A%7D', [
             'headers' => [
-                'Authorization' => 'Bearer ' . $token,
+                'Authorization' => 'Bearer '.$token,
             ],
         ]);
 
@@ -45,24 +45,39 @@ class Provider extends AbstractProvider implements ProviderInterface
 
     /**
      * @param array $user
-     * @return void
      */
     private function getName(array $user)
     {
-        return $user['data']['Me']['first_name'] && $user['data']['Me']['last_name'] ? $user['data']['Me']['first_name'] . ' ' . $user['data']['Me']['last_name'] : null;
+        return $user['data']['Me']['first_name'] && $user['data']['Me']['last_name'] ? $user['data']['Me']['first_name'].' '.$user['data']['Me']['last_name'] : null;
     }
 
     /**
-     * Get the users email address
-     * the location of the email address depends on the type of user
+     * Get the users email address.
      *
      * @param array $user
+     *
      * @return string|null
      */
     private function getEmail(array $user)
     {
-        if (!empty($user['data']['Me']['Person']['ContactDetails']['email'])) {
-            return $user['data']['Me']['Person']['ContactDetails']['email'];
+        if (!empty($user['data']['Me']['email'])) {
+            return $user['data']['Me']['email'];
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Get the users mobile.
+     *
+     * @param array $user
+     *
+     * @return string|null
+     */
+    private function getMobile(array $user)
+    {
+        if (!empty($user['data']['Me']['mobile'])) {
+            return $user['data']['Me']['mobile'];
         } else {
             return null;
         }
@@ -78,7 +93,9 @@ class Provider extends AbstractProvider implements ProviderInterface
             'nickname' => null,
             'name' => $this->getName($user),
             'email' => $this->getEmail($user),
+            'mobile' => $this->getMobile($user),
             'avatar' => null,
+            'school' => $user['data']['Me']['School'] ?? [],
         ]);
     }
 
