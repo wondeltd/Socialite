@@ -18,7 +18,7 @@ class Provider extends AbstractProvider implements ProviderInterface
      */
     protected function getAuthUrl($state)
     {
-        return $this->buildAuthUrlFromBase('https://edu.wonde.dev/oauth/authorize', $state) . '&mode=teacher';
+        return $this->buildAuthUrlFromBase(\env('WONDE_SSO_URL', 'https://edu.wonde.com/') . 'oauth/authorize', $state) . '&mode=' . \env('WONDE_SSO_MODE');
     }
 
     /**
@@ -26,7 +26,7 @@ class Provider extends AbstractProvider implements ProviderInterface
      */
     protected function getTokenUrl()
     {
-        return 'https://api.wonde.dev/oauth/token';
+        return \env('WONDE_API_URL', 'https://api.wonde.com/') . 'oauth/token';
     }
 
     /**
@@ -34,7 +34,7 @@ class Provider extends AbstractProvider implements ProviderInterface
      */
     protected function getUserByToken($token)
     {
-        $response = $this->getHttpClient()->get('https://api.wonde.dev/graphql/me?query=%7B%0A%20%20Me%7B%0A%20%20%20%20id%0A%20%20%20%20first_name%0A%20%20%20%20last_name%0A%20%20%20%20email%0A%20%20%20%20mobile%0A%20%20%20%20School%20%7B%0A%20%20%20%20%20%20id%0A%20%20%20%20%20%20name%0A%20%20%20%20%20%20establishment_number%0A%20%20%20%20%20%20la_code%0A%20%20%20%20%20%20urn%0A%20%20%20%20%7D%0A%20%20%20%20Person%7B%0A%20%20%20%20%20%20__typename%0A%20%20%20%20%20%20...on%20Employee%7B%0A%20%20%20%20%20%20%20%20forename%0A%09%09%09%09surname%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%7D%0A%7D', [
+        $response = $this->getHttpClient()->get(\env('WONDE_API_URL', 'https://api.wonde.com/') . 'graphql/me?query=%7B%0A%20%20Me%7B%0A%20%20%20%20id%0A%20%20%20%20first_name%0A%20%20%20%20last_name%0A%20%20%20%20email%0A%20%20%20%20mobile%0A%20%20%20%20School%20%7B%0A%20%20%20%20%20%20id%0A%20%20%20%20%20%20name%0A%20%20%20%20%20%20establishment_number%0A%20%20%20%20%20%20la_code%0A%20%20%20%20%20%20urn%0A%20%20%20%20%7D%0A%20%20%20%20Person%7B%0A%20%20%20%20%20%20__typename%0A%20%20%20%20%20%20...on%20Employee%7B%0A%20%20%20%20%20%20%20%20forename%0A%09%09%09%09surname%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%7D%0A%7D', [
             'headers' => [
                 'Authorization' => 'Bearer '.$token,
             ],
