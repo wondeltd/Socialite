@@ -34,7 +34,8 @@ class Provider extends AbstractProvider implements ProviderInterface
      */
     protected function getUserByToken($token)
     {
-        $response = $this->getHttpClient()->get(\env('WONDE_API_URL', 'https://api.wonde.com/').'graphql/me?query=%7B%0A%20%20Me%7B%0A%20%20%20%20id%0A%20%20%20%20first_name%0A%20%20%20%20last_name%0A%20%20%20%20email%0A%20%20%20%20mobile%0A%20%20%20%20School%20%7B%0A%20%20%20%20%20%20id%0A%20%20%20%20%20%20name%0A%20%20%20%20%20%20establishment_number%0A%20%20%20%20%20%20la_code%0A%20%20%20%20%20%20urn%0A%20%20%20%20%7D%0A%20%20%20%20Person%7B%0A%20%20%20%20%20%20__typename%0A%20%20%20%20%20%20...on%20Employee%7B%0A%20%20%20%20%20%20%20%20id%0A%09%09%09%09surname%0A%20%20%20%20%20%20%20%20forename%0A%20%20%20%20%20%20%7D%2C%0A%20%20%20%20%20%20...on%20Student%20%7B%0A%20%20%20%20%20%20%20%20id%0A%20%20%20%20%20%20%20%20surname%0A%20%20%20%20%20%20%20%20forename%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20...on%20Contact%20%7B%0A%20%20%20%20%20%20%20%20id%0A%20%20%20%20%20%20%20%20surname%0A%20%20%20%20%20%20%20%20forename%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%7D%0A%7D', [
+        $query = $this->getUserQuery();
+        $response = $this->getHttpClient()->get(\env('WONDE_API_URL', 'https://api.wonde.com/').'graphql/me?query=' . $query, [
             'headers' => [
                 'Authorization' => 'Bearer '.$token,
             ],
@@ -46,9 +47,9 @@ class Provider extends AbstractProvider implements ProviderInterface
     /**
      * @param array $user
      */
-    private function getName(array $user)
+    protected function getName(array $user)
     {
-        return $user['data']['Me']['first_name'] && $user['data']['Me']['last_name'] ? $user['data']['Me']['first_name'].' '.$user['data']['Me']['last_name'] : null;
+        return $user['data']['Me']['Person']['forename'] . ' ' . $user['data']['Me']['Person']['surname'];
     }
 
     /**
@@ -58,10 +59,10 @@ class Provider extends AbstractProvider implements ProviderInterface
      *
      * @return string|null
      */
-    private function getEmail(array $user)
+    protected function getEmail(array $user)
     {
-        if (!empty($user['data']['Me']['email'])) {
-            return $user['data']['Me']['email'];
+        if (!empty($user['data']['Me']['Person']['ContactDetails']['email'])) {
+            return $user['data']['Me']['Person']['ContactDetails']['email'];
         } else {
             return null;
         }
@@ -74,10 +75,10 @@ class Provider extends AbstractProvider implements ProviderInterface
      *
      * @return string|null
      */
-    private function getMobile(array $user)
+    protected function getMobile(array $user)
     {
-        if (!empty($user['data']['Me']['mobile'])) {
-            return $user['data']['Me']['mobile'];
+        if (!empty($user['data']['Me']['Person']['ContactDetails']['telephone_mobile'])) {
+            return $user['data']['Me']['Person']['ContactDetails']['telephone_mobile'];
         } else {
             return null;
         }
@@ -89,14 +90,77 @@ class Provider extends AbstractProvider implements ProviderInterface
     protected function mapUserToObject(array $user)
     {
         return (new User())->setRaw($user)->map([
-            'id' => $user['data']['Me']['id'] ?? null,
+            'id' => $user['data']['Me']['Person']['id'] ?? null,
             'nickname' => null,
             'name' => $this->getName($user),
             'email' => $this->getEmail($user),
             'mobile' => $this->getMobile($user),
             'avatar' => null,
-            'school' => $user['data']['Me']['School'] ?? [],
+            'school' => $user['data']['Me']['Person']['School'] ?? [],
         ]);
+    }
+
+    /**
+     * Returns the url encoded qraphql query for the current user
+     * @return string
+     */
+    protected function getUserQuery()
+    {
+        $query = <<<'GRAPHQL'
+            {
+              Me{
+                Person{
+                  __typename
+                  ...on Employee {
+                    id
+                    title
+                    surname
+                    forename
+                    School {
+                      id
+                      name
+                      establishment_number
+                      la_code
+                      urn
+                      address_line_1
+                      address_line_2
+                      address_town
+                      address_postcode
+                      country
+                    }
+                    ContactDetails {
+                      email
+                      telephone_mobile
+                    }
+                  },
+                  ...on Student {
+                    id
+                    surname
+                    forename
+                    School {
+                      id
+                      name
+                      establishment_number
+                      la_code
+                      urn
+                      address_line_1
+                      address_line_2
+                      address_town
+                      address_postcode
+                      country
+                    }
+                  }
+                  ...on Contact {
+                    id
+                    surname
+                    forename
+                  }
+                }
+              }
+            }
+        GRAPHQL;
+
+        return urlencode($query);
     }
 
     /**
